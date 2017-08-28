@@ -7,8 +7,8 @@
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
         <option name="modules">
           <set>
-            <option value="/media/insight/TOSHIBA_1.0TB/work/AndroidStudioProjects/RxJavaExample" />
-            <option value="/media/insight/TOSHIBA_1.0TB/work/AndroidStudioProjects/RxJavaExample/app" />
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/app" />
           </set>
         </option>
         <option name="resolveModulePerSourceSet" value="false" />
