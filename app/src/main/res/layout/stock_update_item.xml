@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:layout_margin="3dp">
 
-    <TextureView
+    <TextView
         android:id="@+id/stock_item_symbol"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
