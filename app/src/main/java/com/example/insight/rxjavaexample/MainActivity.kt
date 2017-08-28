@@ -3,6 +3,7 @@ package com.example.insight.rxjavaexample
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v7.widget.RecyclerView
+import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,6 +12,10 @@ import butterknife.BindView
 import butterknife.ButterKnife
 import io.reactivex.Observable
 import kotlinx.android.synthetic.main.activity_main.*
+import java.math.BigDecimal
+import java.util.Date
+import java.io.Serializable
+import java.text.DecimalFormat
 
 class MainActivity : AppCompatActivity() {
     @BindView(R.id.stock_updates_recycler_view) lateinit var recyclerView: RecyclerView
@@ -28,8 +33,10 @@ class MainActivity : AppCompatActivity() {
 
         ButterKnife.bind(this)
 
-        Observable.just("APPL", "GOOGLE", "TWTR")
-                .subscribe({ s ->
+        Observable.just(StockUpdate("GOOGLE", 12.43, Date()),
+                StockUpdate("APPL", 645.1, Date()),
+                StockUpdate("TWTR", 1.43, Date()))
+                .subscribe({ s->
                     stockDataAdapter.add(s)
                 })
 
@@ -38,7 +45,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     class StockDataAdapter : RecyclerView.Adapter<StockUpdateViewHolder>() {
-        private val data = ArrayList<String>()
+        private val data = ArrayList<StockUpdate>()
 
         override fun onCreateViewHolder(parent: ViewGroup?, viewType: Int): StockUpdateViewHolder? {
             return parent?.let {
@@ -48,24 +55,50 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onBindViewHolder(holder: StockUpdateViewHolder, position: Int) {
-            holder.stockSymbol.text = data.get(position)
+            val stockUpdate = data.get(position)
+            holder.setStockSymbol(stockUpdate.stockSymbol)
+            holder.setPrice(stockUpdate.price)
+            holder.setDate(stockUpdate.date)
         }
 
         override fun getItemCount(): Int {
             return data.size
         }
 
-        public fun add(stockSymbol: String) {
-            data.add(stockSymbol)
+        fun add(s: StockUpdate) {
+            data.add(s)
             notifyItemInserted(data.size - 1)
         }
     }
 
     class StockUpdateViewHolder(v: View) : RecyclerView.ViewHolder(v) {
+        companion object {
+            val PRICE_FORMAT = DecimalFormat("#0.00")
+        }
+
         @BindView(R.id.stock_item_symbol) lateinit var stockSymbol: TextView
+        @BindView(R.id.stock_item_date) lateinit var date: TextView
+        @BindView(R.id.stock_item_price) lateinit var price: TextView
+
+        fun setPrice(price: BigDecimal) {
+            this.price.text = PRICE_FORMAT.format(price.toFloat())
+        }
+
+        fun setStockSymbol(stockSymbol: String) {
+            this.stockSymbol.text = stockSymbol
+        }
+
+        fun setDate(date: Date) {
+            this.date.text = DateFormat.format("yyyy-MM-dd hh:mm", date)
+        }
+
         init {
             ButterKnife.bind(this, v)
         }
+    }
+
+    class StockUpdate(val stockSymbol: String, val price: BigDecimal, val date: Date) : Serializable {
+        constructor(stockSymbol: String, price: Double, date: Date) : this(stockSymbol, BigDecimal(price), date)
     }
 }
 
