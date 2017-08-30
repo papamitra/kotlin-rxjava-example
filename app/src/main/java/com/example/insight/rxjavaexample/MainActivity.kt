@@ -4,6 +4,7 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v7.widget.RecyclerView
 import android.text.format.DateFormat
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,6 +12,8 @@ import android.widget.TextView
 import butterknife.BindView
 import butterknife.ButterKnife
 import io.reactivex.Observable
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
 import java.math.BigDecimal
 import java.util.Date
@@ -32,13 +35,22 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         ButterKnife.bind(this)
+        val yahooService = RetrofitYahooServiceFactory().create()
 
-        Observable.just(StockUpdate("GOOGLE", 12.43, Date()),
-                StockUpdate("APPL", 645.1, Date()),
-                StockUpdate("TWTR", 1.43, Date()))
-                .subscribe({ s->
-                    stockDataAdapter.add(s)
-                })
+        val query = "select * from yahoo.finance.quote where symbol in ('YHOO', 'AAPL', 'GOOG', 'MSFT')"
+        val env = "store://datatables.org/alltableswithkeys"
+
+        yahooService.yqlQuery(query,env)
+                .subscribeOn(Schedulers.io())
+                .toObservable()
+                .map { r -> r.query.results.quote }
+                .flatMap { r -> Observable.fromIterable(r) }
+                .map { r -> StockUpdate.create(r) }
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe { stockUpdate ->
+                    Log.d("APP", "New update" + stockUpdate.stockSymbol)
+                    stockDataAdapter.add(stockUpdate)
+                }
 
         recyclerView.layoutManager = layoutManager
         recyclerView.adapter = stockDataAdapter
@@ -99,6 +111,13 @@ class MainActivity : AppCompatActivity() {
 
     class StockUpdate(val stockSymbol: String, val price: BigDecimal, val date: Date) : Serializable {
         constructor(stockSymbol: String, price: Double, date: Date) : this(stockSymbol, BigDecimal(price), date)
+
+        companion object {
+            fun create(r: YahooStockQuote): StockUpdate {
+                Log.d("App", "symbol: " + r.symbol + ", price: " + r.lastTradePriceOnly.toString())
+                return StockUpdate(r.symbol, r.lastTradePriceOnly ?: BigDecimal(-1), Date())
+            }
+        }
     }
 }
 

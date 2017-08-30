@@ -70,7 +70,7 @@ data class YahooStockResults(
 data class YahooStockQuote(
         @SerializedName("symbol") val symbol: String,
         val name: String,
-        @SerializedName("LastTradePriceOnly") val lastTradePriceOnly: BigDecimal,
+        @SerializedName("LastTradePriceOnly") val lastTradePriceOnly: BigDecimal?,
         val daysLow: BigDecimal,
         val daysHigh: BigDecimal,
         val volume: String
