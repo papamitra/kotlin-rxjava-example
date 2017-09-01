@@ -1,5 +1,6 @@
 package com.example.insight.rxjavaexample
 
+import android.arch.persistence.room.Room
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v7.widget.RecyclerView
@@ -12,6 +13,7 @@ import android.widget.TextView
 import butterknife.BindView
 import butterknife.ButterKnife
 import io.reactivex.Observable
+import io.reactivex.Observable.fromIterable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
@@ -19,15 +21,25 @@ import java.math.BigDecimal
 import java.util.Date
 import java.io.Serializable
 import java.text.DecimalFormat
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     @BindView(R.id.stock_updates_recycler_view) lateinit var recyclerView: RecyclerView
+
     private val layoutManager by lazy {
         android.support.v7.widget.LinearLayoutManager(this)
     }
 
     private val stockDataAdapter by lazy {
         StockDataAdapter()
+    }
+
+    val database by lazy {
+        Room.databaseBuilder(applicationContext, StocksDatabase::class.java, "stocks_database").build()
+    }
+
+    private fun log(stage: String) {
+        Log.d("APP", stage + ":" + Thread.currentThread().name)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,20 +52,31 @@ class MainActivity : AppCompatActivity() {
         val query = "select * from yahoo.finance.quote where symbol in ('YHOO', 'AAPL', 'GOOG', 'MSFT')"
         val env = "store://datatables.org/alltableswithkeys"
 
-        yahooService.yqlQuery(query,env)
+        Observable.interval(0, 5, TimeUnit.SECONDS)
+                .flatMap { _ -> yahooService.yqlQuery(query,env).toObservable() }
                 .subscribeOn(Schedulers.io())
-                .toObservable()
                 .map { r -> r.query.results.quote }
                 .flatMap { r -> Observable.fromIterable(r) }
                 .map { r -> StockUpdate.create(r) }
+                .doOnNext(this::saveStockUpdate)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe { stockUpdate ->
-                    Log.d("APP", "New update" + stockUpdate.stockSymbol)
+                    log("New update" + stockUpdate.stockSymbol)
                     stockDataAdapter.add(stockUpdate)
                 }
 
         recyclerView.layoutManager = layoutManager
         recyclerView.adapter = stockDataAdapter
+    }
+
+    private fun saveStockUpdate(stockUpdate: StockUpdate) {
+        log("saveStockUpdate: " + stockUpdate.stockSymbol)
+        val stock = Stock(stockSymbol = stockUpdate.stockSymbol, price = stockUpdate.price.toString(), date = stockUpdate.date.toString())
+
+        Observable.just(stock)
+                .subscribe{ s ->
+                    database.stockDao().insertStock(s)
+                }
     }
 
     class StockDataAdapter : RecyclerView.Adapter<StockUpdateViewHolder>() {
