@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     @BindView(R.id.stock_updates_recycler_view) lateinit var recyclerView: RecyclerView
+    @BindView(R.id.no_data_available) lateinit var noDataAvailableView: TextView
 
     private val layoutManager by lazy {
         android.support.v7.widget.LinearLayoutManager(this)
@@ -53,19 +54,24 @@ class MainActivity : AppCompatActivity() {
         val env = "store://datatables.org/alltableswithkeys"
 
         Observable.interval(0, 5, TimeUnit.SECONDS)
-                .flatMap { _ -> yahooService.yqlQuery(query,env).toObservable() }
+                .flatMap { _ -> yahooService.yqlQuery(query, env).toObservable() }
                 .subscribeOn(Schedulers.io())
                 .map { r -> r.query.results.quote }
                 .flatMap { r -> Observable.fromIterable(r) }
                 .map { r -> StockUpdate.create(r) }
                 .doOnNext(this::saveStockUpdate)
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { stockUpdate ->
+                .subscribe({ stockUpdate ->
                     log("New update" + stockUpdate.stockSymbol)
+                    noDataAvailableView.visibility = View.GONE
                     stockDataAdapter.add(stockUpdate)
-                }
+                }, { error ->
+                    if (stockDataAdapter.getItemCount() == 0) {
+                        noDataAvailableView.visibility = View.VISIBLE
+                    }
+                })
 
-        recyclerView.layoutManager = layoutManager
+        recyclerView . layoutManager = layoutManager
         recyclerView.adapter = stockDataAdapter
     }
 
@@ -74,7 +80,7 @@ class MainActivity : AppCompatActivity() {
         val stock = Stock(stockSymbol = stockUpdate.stockSymbol, price = stockUpdate.price.toString(), date = stockUpdate.date.toString())
 
         Observable.just(stock)
-                .subscribe{ s ->
+                .subscribe { s ->
                     database.stockDao().insertStock(s)
                 }
     }
@@ -101,8 +107,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun add(s: StockUpdate) {
-            data.add(s)
-            notifyItemInserted(data.size - 1)
+            for (stockUpdate in data) {
+                if (stockUpdate.stockSymbol.equals(s.stockSymbol)) {
+                    if (stockUpdate.price.equals(s.price)) {
+                        return
+                    }
+                    break
+                }
+            }
+
+            data.add(0, s)
+            notifyItemInserted(0)
         }
     }
 
