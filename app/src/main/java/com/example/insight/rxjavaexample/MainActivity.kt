@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.Toast
 import butterknife.BindView
 import butterknife.ButterKnife
 import io.reactivex.Observable
@@ -54,8 +55,18 @@ class MainActivity : AppCompatActivity() {
         val env = "store://datatables.org/alltableswithkeys"
 
         Observable.interval(0, 5, TimeUnit.SECONDS)
-                .flatMap { _ -> yahooService.yqlQuery(query, env).toObservable() }
+                .flatMap { _ ->
+                    yahooService.yqlQuery(query, env).toObservable()
+                }
                 .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnError { error ->
+                    log("error")
+                    Toast.makeText(this, "We couldn't reach internet - falling back to local data",
+                            Toast.LENGTH_SHORT).show()
+
+                }
+                .observeOn(Schedulers.io())
                 .map { r -> r.query.results.quote }
                 .flatMap { r -> Observable.fromIterable(r) }
                 .map { r -> StockUpdate.create(r) }
