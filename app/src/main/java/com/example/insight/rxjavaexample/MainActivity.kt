@@ -16,6 +16,7 @@ import butterknife.ButterKnife
 import io.reactivex.Observable
 import io.reactivex.Observable.fromIterable
 import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.plugins.RxJavaPlugins
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
 import java.math.BigDecimal
@@ -53,6 +54,8 @@ class MainActivity : AppCompatActivity() {
 
         val query = "select * from yahoo.finance.quote where symbol in ('YHOO', 'AAPL', 'GOOG', 'MSFT')"
         val env = "store://datatables.org/alltableswithkeys"
+
+        RxJavaPlugins.setErrorHandler(ErrorHandler.get())
 
         Observable.interval(0, 5, TimeUnit.SECONDS)
                 .flatMap { _ ->
